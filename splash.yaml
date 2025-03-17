@@ -1,0 +1,8 @@
+flutter_native_splash:
+  image: assets/mockrocket-capture.png
+  color: FFFFFF
+  android_12:
+  android: true
+
+  ios: true
+  web: true
