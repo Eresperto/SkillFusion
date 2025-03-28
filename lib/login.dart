@@ -34,7 +34,7 @@ class _LoginPageState extends State<LoginPage> {
         kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
       );
       if (mounted) {
-        //   context.showSnackBar('Check your email for a login link!');
+        // context.showSnackBar('Check your email for a login link!');
         _emailController.clear();
         _passwordController.clear();
       }
@@ -221,7 +221,6 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                               SizedBox(height: 50 * heightScale),
-
                               // SizedBox(height: 52 * heightScale,width: 312*widthScale,
                               //     child:
                               //     TextField(
@@ -249,7 +248,7 @@ class _LoginPageState extends State<LoginPage> {
                             ],
                           ),
                           ElevatedButton(
-                            onPressed: _isLoading ? null : _signIn,
+                            onPressed: _isLoading ? null :    _signIn,
                             //() {
                             // Navigator.of(context).push(
                             //   PageRouteBuilder(
@@ -274,8 +273,6 @@ class _LoginPageState extends State<LoginPage> {
                             //     },
                             //   ),
                             // );
-
-
                             // Действие при нажатии на "Авторизоваться"
                             //  },
                             style: ElevatedButton.styleFrom(
@@ -289,11 +286,7 @@ class _LoginPageState extends State<LoginPage> {
                             child: Text(_isLoading ? 'Отправка...' : 'Зарегестрироваться',
                               style: TextStyle(fontSize: 15),),
                           ),
-
                           Padding(padding: EdgeInsets.all(58*heightScale)),
-
-
-
                         ],
                       ),
 

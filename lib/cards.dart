@@ -507,8 +507,8 @@ class MiddleSkillCardImage extends StatelessWidget {
                           //'https://inusbwyedxylsbcxolat.supabase.co/storage/v1/object/public/images/images/1000005544.jpg',
                           image_url,
                           fit: BoxFit.cover,
-                          height: 110,
-                          width: 380/*315double.infinity*/,
+                          height: 110*heightScale,
+                          width: 380*widthScale/*315double.infinity*/,
                           //width: 330/*315double.infinity*/,
 
                         ),

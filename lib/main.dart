@@ -622,32 +622,7 @@ class _AccountPageState extends State<AccountPage> {
         Center(child: CircularProgressIndicator(color: Colors.cyan)),)
         :
       //skills.isNotEmpty?
-    GestureDetector(
-    onTap:(){
-    Navigator.of(context).push(
-    PageRouteBuilder(
-    pageBuilder: (context, animation, secondaryAnimation) {
-    // Navigate to the SecondScreen
-    return ChatPage();
-    },
-    transitionsBuilder:
-    (context, animation, secondaryAnimation, child) {
-    const begin = Offset(1.0, 0.0);
-    const end = Offset.zero;
-    const curve = Curves.easeInOut;
-    var tween = Tween(begin: begin, end: end)
-        .chain(CurveTween(curve: curve));
-    var offsetAnimation = animation.drive(tween);
-    return SlideTransition(
-    // Apply slide transition
-    position: offsetAnimation,
-    child: child,
-    );
-    },
-    ),
-    );
-    },
-    child:
+
       Padding(
         padding: EdgeInsets.all(16)/*only(left: 16, top:16)*/,
         child: Column(
@@ -687,7 +662,33 @@ class _AccountPageState extends State<AccountPage> {
                       final item = skills[index];
 
 
-                      return  Padding(
+                      return      GestureDetector(
+                        onTap:(){
+                          Navigator.of(context).push(
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) {
+                                // Navigate to the SecondScreen
+                                return ChatPage();
+                              },
+                              transitionsBuilder:
+                                  (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+                                var tween = Tween(begin: begin, end: end)
+                                    .chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+                                return SlideTransition(
+                                  // Apply slide transition
+                                  position: offsetAnimation,
+                                  child: child,
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        child:
+                        Padding(
                           padding: EdgeInsets.only(right: 15),
                           child: Column(
                             children: [
@@ -716,7 +717,8 @@ class _AccountPageState extends State<AccountPage> {
                               )
                             ],
                           ),
-                        );
+                        ),)
+                      ;
 
                     },
                   ),
@@ -830,7 +832,7 @@ class _AccountPageState extends State<AccountPage> {
           //       tags: ["Кодинг","Kotlin", "Android"], widthScale: widthScale, heightScale: heightScale),
            ],
         ),
-      )
+
             //: Center(child: Padding(padding: EdgeInsets.only(top:200),child: Text("Пока нет взаимных карточек"),),)
     ),);
   }

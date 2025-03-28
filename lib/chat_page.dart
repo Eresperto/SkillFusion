@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:deeplink3/profile.dart';
 import 'package:flutter/material.dart';
@@ -29,75 +30,222 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  late final Stream<List<Messages>> _messagesStream;
+  late final StreamSubscription<List<Map<String, dynamic>>> _messagesSubscription;
+  final List<Messages> _messages = [];
   final Map<String, Profile> _profileCache = {};
+  final Set<String> _loadingProfiles = HashSet<String>();
+  bool _isLoading = true;
+  bool _hasMore = true;
+  String? _lastTimestamp;
+  static const int _messageLimit = 20;
 
   @override
   void initState() {
-    final myUserId = supabase.auth.currentUser!.id;
-    _messagesStream = supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .order('created_at')
-        .map((maps) => maps
-        .map((map) => Messages.fromMap(map: map, myUserId: myUserId))
-        .toList());
     super.initState();
+    _initializeMessages();
+    _setupMessagesSubscription();
   }
 
-  Future<void> _loadProfileCache(String profileId) async {
-    if (_profileCache[profileId] != null) {
-      return;
-    }
-    final data =
-    await supabase.from('profiles').select().eq('id', profileId).single();
-    final profile = Profile.fromMap(data);
+  @override
+  void dispose() {
+    _messagesSubscription.cancel();
+    super.dispose();
+  }
+
+  // Загрузка начальных сообщений с пагинацией
+  Future<void> _initializeMessages() async {
     setState(() {
-      _profileCache[profileId] = profile;
+      _isLoading = true;
     });
+
+    try {
+      final myUserId = supabase.auth.currentUser!.id;
+      
+      final response = await supabase
+          .from('messages')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(_messageLimit);
+      
+      final List<Messages> messages = response
+          .map((map) => Messages.fromMap(map: map, myUserId: myUserId))
+          .toList();
+      
+      if (messages.isNotEmpty) {
+        _lastTimestamp = messages.last.createdAt.toIso8601String();
+      }
+      
+      setState(() {
+        _messages.clear();
+        _messages.addAll(messages);
+        _isLoading = false;
+        _hasMore = messages.length >= _messageLimit;
+      });
+      
+      // Пакетная загрузка профилей пользователей
+      await _batchLoadProfiles(messages);
+      
+    } catch (e) {
+      debugPrint('Ошибка загрузки сообщений: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Создаём подписку на новые сообщения
+  void _setupMessagesSubscription() {
+    final myUserId = supabase.auth.currentUser!.id;
+    
+    _messagesSubscription = supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .order('created_at') // Сортировка по дате создания
+        .listen((List<Map<String, dynamic>> data) {
+          final newMessages = data
+              .map((map) => Messages.fromMap(map: map, myUserId: myUserId))
+              .toList();
+          
+          if (newMessages.isNotEmpty) {
+            setState(() {
+              // Добавляем только сообщения, которых ещё нет в списке
+              for (final message in newMessages) {
+                if (!_messages.any((m) => m.id == message.id)) {
+                  _messages.insert(0, message); // Вставляем новые сообщения в начало списка
+                }
+              }
+            });
+            
+            // Загружаем профили для новых сообщений
+            _batchLoadProfiles(newMessages);
+          }
+        });
+  }
+
+  // Загрузка старых сообщений при прокрутке списка
+  Future<void> _loadMoreMessages() async {
+    if (!_hasMore || _isLoading || _lastTimestamp == null) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final myUserId = supabase.auth.currentUser!.id;
+      
+      final response = await supabase
+          .from('messages')
+          .select()
+          .lt('created_at', _lastTimestamp!)
+          .order('created_at', ascending: false)
+          .limit(_messageLimit);
+      
+      final List<Messages> messages = response
+          .map((map) => Messages.fromMap(map: map, myUserId: myUserId))
+          .toList();
+      
+      if (messages.isNotEmpty) {
+        _lastTimestamp = messages.last.createdAt.toIso8601String();
+      }
+      
+      setState(() {
+        _messages.addAll(messages);
+        _isLoading = false;
+        _hasMore = messages.length >= _messageLimit;
+      });
+      
+      // Пакетная загрузка профилей
+      await _batchLoadProfiles(messages);
+      
+    } catch (e) {
+      debugPrint('Ошибка загрузки предыдущих сообщений: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Пакетная загрузка профилей
+  Future<void> _batchLoadProfiles(List<Messages> messages) async {
+    final Set<String> profileIds = messages
+        .map((m) => m.profileId)
+        .where((id) => !_profileCache.containsKey(id) && !_loadingProfiles.contains(id))
+        .toSet();
+    
+    if (profileIds.isEmpty) return;
+    
+    // Отмечаем профили как загружаемые
+    for (final id in profileIds) {
+      _loadingProfiles.add(id);
+    }
+    
+    try {
+      final response = await supabase
+          .from('profiles')
+          .select()
+          .in_('id', profileIds.toList());
+      
+      final profiles = response.map((data) => Profile.fromMap(data)).toList();
+      
+      if (mounted) {
+        setState(() {
+          for (final profile in profiles) {
+            _profileCache[profile.id] = profile;
+            _loadingProfiles.remove(profile.id);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Ошибка пакетной загрузки профилей: $e');
+      // Удаляем ID из загружаемых, чтобы можно было повторить попытку
+      for (final id in profileIds) {
+        _loadingProfiles.remove(id);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(backgroundColor: Colors.white,title: const Text('Чаты')),
-      body: StreamBuilder<List<Messages>>(
-        stream: _messagesStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final messages = snapshot.data!;
-            return Column(
-              children: [
-                Expanded(
-                  child: messages.isEmpty
-                      ? const Center(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: const Text('Чаты')
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _messages.isEmpty && !_isLoading
+                ? const Center(
                     child: Text('Начните ваше общение здесь!'),
                   )
-                      : ListView.builder(
-                    reverse: true,
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-
-                      /// I know it's not good to include code that is not related
-                      /// to rendering the widget inside build method, but for
-                      /// creating an app quick and dirty, it's fine 😂
-                      _loadProfileCache(message.profileId);
-
-                      return _ChatBubble(
-                        message: message,
-                        profile: _profileCache[message.profileId],
-                      );
+                : NotificationListener<ScrollNotification>(
+                    onNotification: (ScrollNotification scrollInfo) {
+                      if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent && _hasMore) {
+                        _loadMoreMessages();
+                      }
+                      return true;
                     },
+                    child: ListView.builder(
+                      reverse: true,
+                      itemCount: _messages.length + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _messages.length) {
+                          return _isLoading 
+                              ? const Center(child: CircularProgressIndicator(color: Colors.cyan,))
+                              : const SizedBox();
+                        }
+                        
+                        final message = _messages[index];
+                        return _ChatBubble(
+                          message: message,
+                          profile: _profileCache[message.profileId],
+                        );
+                      },
+                    ),
                   ),
-                ),
-                const _MessageBar(),
-              ],
-            );
-          } else {
-            return preloader;
-          }
-        },
+          ),
+          const _MessageBar(),
+        ],
       ),
     );
   }
@@ -105,15 +253,27 @@ class _ChatPageState extends State<ChatPage> {
 
 /// Set of widget that contains TextField and Button to submit message
 class _MessageBar extends StatefulWidget {
-  const _MessageBar({
-    Key? key,
-  }) : super(key: key);
+  const _MessageBar({Key? key}) : super(key: key);
+  
   @override
   State<_MessageBar> createState() => _MessageBarState();
 }
 
 class _MessageBarState extends State<_MessageBar> {
   late final TextEditingController _textController;
+  bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +285,7 @@ class _MessageBarState extends State<_MessageBar> {
             child: TextField(
               controller: _textController,
               decoration: InputDecoration(
-                hintText: "Type your message",
+                hintText: "Напишите сообщение",
                 filled: true,
                 fillColor: Colors.grey[200],
                 border: OutlineInputBorder(
@@ -144,74 +304,54 @@ class _MessageBarState extends State<_MessageBar> {
           CircleAvatar(
             backgroundColor: Colors.blue,
             radius: 25,
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
-                onPressed: () => _submitMessage()
-            ),
+            child: _isSending
+                ? const CircularProgressIndicator(color: Colors.white)
+                : IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: _submitMessage,
+                  ),
           ),
         ],
       ),
     );
-    //   Material(
-    //   color:CustomTheme.lightTheme.secondaryHeaderColor /*Colors.grey[200]*/,
-    //   child: SafeArea(
-    //     child: Padding(
-    //       padding: const EdgeInsets.all(10.0),
-    //       child: Row(
-    //         children: [
-    //           Expanded(
-    //             child: TextFormField(
-    //               keyboardType: TextInputType.text,
-    //               maxLines: null,
-    //               autofocus: true,
-    //               controller: _textController,
-    //               decoration: const InputDecoration(
-    //                 hintText: 'Напишите сообщение',
-    //                 border: InputBorder.none,
-    //                 focusedBorder: InputBorder.none,
-    //                 contentPadding: EdgeInsets.all(8),
-    //               ),
-    //             ),
-    //           ),
-    //           IconButton(onPressed:()=>_submitMessage() , icon: SvgPicture.asset('assets/icons/send.svg',color: const Color(0xff2382ff)/*CustomTheme.lightTheme.primaryColor,*/))
-    //           // TextButton(
-    //           //   onPressed: () => _submitMessage(),
-    //           //   child:  Text('Send',style: TextStyle(color: CustomTheme.lightTheme.primaryColor),),
-    //           // ),
-    //         ],
-    //       ),
-    //     ),
-    //   ),
-    // );
   }
 
-  @override
-  void initState() {
-    _textController = TextEditingController();
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    super.dispose();
-  }
   void _submitMessage() async {
     final text = _textController.text;
-    final myUserId = supabase.auth.currentUser!.id;
-    if (text.isEmpty) {
+    if (text.isEmpty || _isSending) {
       return;
     }
+    
+    final myUserId = supabase.auth.currentUser!.id;
     _textController.clear();
+    
+    setState(() {
+      _isSending = true;
+    });
+    
     try {
       await supabase.from('messages').insert({
         'profile_id': myUserId,
         'content': text,
       });
     } on PostgrestException catch (error) {
-      //context.showErrorSnackBar(message: error.message);
-    } catch (_) {
-     // context.showErrorSnackBar(message: unexpectedErrorMessage);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: ${error.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Произошла неожиданная ошибка')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
   }
 }
@@ -228,54 +368,48 @@ class _ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> chatContents = [
+    final List<Widget> chatContents = [
       if (!message.isMine)
         CircleAvatar(
           child: profile == null
-              ? preloader
+              ? const Text("Gu")
               : Text(profile!.username.substring(0, 2)),
         ),
       const SizedBox(width: 12),
-      Flexible(
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            vertical: 10,
-            horizontal: 12,
-          ),
-          decoration: BoxDecoration(
-            color: message.isMine
-                ? const Color(0xffe5f4ff)
-
-                // ? const Color(0xff2D435D)
-                : const Color(0xfff7f7f9),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-              message.content,
-            style: TextStyle(
-              color: Theme.of(context).primaryColor, /*message.isMine
-                  ? Colors.white
-                  : Theme.of(context).primaryColor,*/
-              fontSize: 20,
-              fontWeight: FontWeight.w400
-            ),
-
+      Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.7,
+        ),
+        padding: const EdgeInsets.symmetric(
+          vertical: 10,
+          horizontal: 12,
+        ),
+        decoration: BoxDecoration(
+          color: message.isMine
+              ? const Color(0xffe5f4ff)
+              : const Color(0xfff7f7f9),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          message.content,
+          style: TextStyle(
+            color: Theme.of(context).primaryColor,
+            fontSize: 20,
+            fontWeight: FontWeight.w400
           ),
         ),
       ),
       const SizedBox(width: 12),
       Text(format(message.createdAt, locale: 'en_short')),
-      const SizedBox(width: 60),
+      const SizedBox(width: 10),
     ];
-    if (message.isMine) {
-      chatContents = chatContents.reversed.toList();
-    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
       child: Row(
         mainAxisAlignment:
-        message.isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: chatContents,
+            message.isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: message.isMine ? chatContents.reversed.toList() : chatContents,
       ),
     );
   }
