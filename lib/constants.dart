@@ -137,10 +137,10 @@ class CardService {
           .select()
           .neq('owner_id', currentUserId)
           .order('created_at', ascending: false)
-          .execute();
+          /*.execute()*/;
 
 
-      final data = response.data as List<dynamic>;
+      final data = response/*.data*/ as List<dynamic>;
       return data.map((json) => CardModel.fromJson(json)).toList();
     } catch (e) {
       // Обработка ошибок (можно логировать или показывать пользователю)
@@ -175,8 +175,8 @@ class CardService {
           .select()
           .eq('owner_id', currentUserId)
           .order('created_at', ascending: false)
-          .execute(); // Используем execute()
-      final data = response.data as List<dynamic>;
+          /*.execute()*/; // Используем execute()
+      final data = response/*.data*/ as List<dynamic>;
       return data.map((json) => CardModel.fromJson(json)).toList();
     } catch (e) {
       // Обработка ошибок (можно логировать или показывать пользователю)
@@ -191,9 +191,9 @@ class CardService {
           .select()
           .eq('owner_id', userId)
           .order('created_at', ascending: false)
-          .execute();
+          /*.execute()*/;
 
-      final data = response.data as List<dynamic>;
+      final data = response/*.data*/ as List<dynamic>;
       return data.map((json) => CardModel.fromJson(json)).toList();
     } catch (e) {
       rethrow;
@@ -216,7 +216,7 @@ class CardService {
         //'image_url': imageUrl,
         //'tags': tags,
         'created_at': DateTime.now().toIso8601String(),
-      }).execute();
+      })/*.execute()*/;
     } catch (e) {
       rethrow;
     }
@@ -268,7 +268,7 @@ class CardService {
         'user_id': userId,
         'card_id': cardId,
         'created_at': DateTime.now().toIso8601String(),
-      }).execute();
+      })/*.execute()*/;
 
     } catch (e) {
       rethrow;
@@ -305,18 +305,18 @@ class CardService {
           .from('likes')
           .select('user_id')
           .eq('card_id', cardId)
-          .execute();
+          /*.execute()*/;
 
 
 
-      final data = response.data as List<dynamic>;
+      final data = response/*.data*/ as List<dynamic>;
       final userIds = data.map((item) => item['user_id'] as String).toList();
 
       final usersResponse = await _supabaseClient
           .from('profiles')
           .select()
-          .in_('id', userIds)
-          .execute();
+          .inFilter('id', userIds)
+          /*.execute()*/;
       // final usersResponse = await _supabaseClient
       //     .from('cards')
       //     .select()
@@ -325,7 +325,7 @@ class CardService {
 
 
 
-      final usersData = usersResponse.data as List<dynamic>;
+      final usersData = usersResponse/*.data*/ as List<dynamic>;
       return usersData.map((json) => UserModel.fromJson(json)).toList();
     } catch (e) {
       rethrow;

@@ -181,9 +181,9 @@ class _Likes extends State<Likes> {
       final response = await supabase
           .from('likes')
           .select('card_id')
-          .eq('user_id', Supabase.instance.client.auth.currentUser?.id)
-          .execute();
-      final data = response.data as List<dynamic>;
+          .eq('user_id', Supabase.instance.client.auth.currentUser!.id)
+          /*.execute()*/;
+      final data = response/*.data*/ as List<dynamic>;
       final userIds = data.map((item) => item['card_id'].toString()).toList();
 
       // final usersResponse = await _supabaseClient
@@ -194,11 +194,11 @@ class _Likes extends State<Likes> {
       final usersResponse = await supabase
           .from('cards')
           .select()
-          .in_('id', userIds)
-          .execute();
+          .inFilter('id', userIds)
+          /*.execute()*/;
 
       setState(() {
-        _tasks= List<Map<String, dynamic>>.from(usersResponse.data);
+        _tasks= List<Map<String, dynamic>>.from(usersResponse/*.data*/);
         _isLoading=false;
       });
       // final dat = usersResponse.data as List<dynamic>;

@@ -357,7 +357,7 @@ class _HeartState extends State<Heartwidget> {
         'user_id': userId,
         'card_id': cardId,
         'created_at': DateTime.now().toIso8601String(),
-      }).execute();
+      })/*.execute()*/;
 
     } catch (e) {
       rethrow;
@@ -371,7 +371,7 @@ class _HeartState extends State<Heartwidget> {
           .delete()
           .eq('user_id', user1Id)
           .eq('card_id', card1Id)
-          .execute();
+          /*.execute()*/;
     } catch (e) {
       rethrow;
     }
@@ -385,7 +385,7 @@ class _HeartState extends State<Heartwidget> {
         'user2_id': user2Id,
         'card2_id': card2Id,
         'created_at': DateTime.now().toIso8601String(),
-      }).execute();
+      })/*.execute()*/;
 
     } catch (e) {
       rethrow;

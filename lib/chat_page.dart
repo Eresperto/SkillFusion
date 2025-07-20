@@ -183,7 +183,7 @@ class _ChatPageState extends State<ChatPage> {
       final response = await supabase
           .from('profiles')
           .select()
-          .in_('id', profileIds.toList());
+          .inFilter('id', profileIds.toList());
       
       final profiles = response.map((data) => Profile.fromMap(data)).toList();
       

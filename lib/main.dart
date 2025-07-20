@@ -312,8 +312,8 @@ class _AccountPageState extends State<AccountPage> {
           .select('card2_id')
           //.select()
           .eq('user1_id',currentUserId)
-          .execute();
-      final data = chatRoomsResponse.data as List<dynamic>;
+          /*.execute()*/;
+      final data = chatRoomsResponse/*.data*/ as List<dynamic>;
       final userIds = data.map((item) => item['card2_id'].toString()).toList();
 
       final chatRoomsResponse2 = await supabase
@@ -321,8 +321,8 @@ class _AccountPageState extends State<AccountPage> {
           .select('card1_id')
           //.select()
           .eq('user2_id',currentUserId)
-          .execute();
-      final data2 = chatRoomsResponse2.data as List<dynamic>;
+          /*.execute()*/;
+      final data2 = chatRoomsResponse2/*.data*/ as List<dynamic>;
       final userIds2 = data2.map((item) => item['card1_id'].toString()).toList();
 
       userIds.addAll(userIds2);
@@ -334,14 +334,14 @@ class _AccountPageState extends State<AccountPage> {
       final usersResponse = await supabase
           .from('cards')
           .select()
-          .in_('id', userIds)
+          .inFilter('id', userIds)
          // .eq('id',1)
-          .execute();
+          /*.execute()*/;
 ///Получение всех карточек для поиска
       final response = await supabase.from('cards').select();
 
       setState(() {
-        skills= List<Map<String, dynamic>>.from(usersResponse.data);
+        skills= List<Map<String, dynamic>>.from(usersResponse/*.data*/);
         skillsAll = List<Map<String, dynamic>>.from(response);
         _isCardLoading=false;
       });

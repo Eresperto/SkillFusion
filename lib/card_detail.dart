@@ -354,7 +354,7 @@ class MiddleSkillCardDelete extends StatelessWidget {
           .delete()
           .eq('user_id', user1Id)
           .eq('card_id', card1Id)
-          .execute();
+          /*.execute()*/;
     } catch (e) {
       rethrow;
     }
@@ -368,7 +368,7 @@ class MiddleSkillCardDelete extends StatelessWidget {
         'user2_id': user2Id,
         'card2_id': card2Id,
         'created_at': DateTime.now().toIso8601String(),
-      }).execute();
+      })/*.execute()*/;
 
     } catch (e) {
       rethrow;
@@ -664,8 +664,8 @@ class _CardDetailPageState extends State<CardDetailPage> {
           .from('likes')
           .select('user_id')
           .eq('card_id', cardId)
-          .execute();
-      final data = response.data as List<dynamic>;
+          /*.execute()*/;
+      final data = response/*.data*/ as List<dynamic>;
       final userIds = data.map((item) => item['user_id'] as String).toList();
       // final usersResponse = await _supabaseClient
       //     .from('profiles')
@@ -675,11 +675,11 @@ class _CardDetailPageState extends State<CardDetailPage> {
       final usersResponse = await supabase
           .from('cards')
           .select()
-          .in_('owner_id', userIds)
-          .execute();
+          .inFilter('owner_id', userIds)
+          /*.execute()*/;
 
       setState(() {
-        skills= List<Map<String, dynamic>>.from(usersResponse.data);
+        skills= List<Map<String, dynamic>>.from(usersResponse/*.data*/);
         _isLoading=false;
       });
 

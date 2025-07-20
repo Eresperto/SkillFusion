@@ -38,7 +38,7 @@ class _MySkillsScreenState extends State<MySkillsScreen> {
 
   Future<void> _loadTasks() async {
     try {
-      final response = await supabase.from('cards').select().eq('owner_id', Supabase.instance.client.auth.currentUser?.id);
+      final response = await supabase.from('cards').select().eq('owner_id', Supabase.instance.client.auth.currentUser!.id);
       if (response.isNotEmpty) {
         setState(() {
           _tasks = List<Map<String, dynamic>>.from(response);
